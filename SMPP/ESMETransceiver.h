@@ -11,13 +11,14 @@ class ESMETransceiver: public QObject
     Q_OBJECT
 
 public:
-    ESMETransceiver(const QString& hostname,
-                    quint16 port,
-                    const QString& login,
-                    const QString& password,
-                    const QString& systemType,
-                    quint8 smmpVersion,
-                    QObject* parent = nullptr);
+    explicit ESMETransceiver(const QString& hostname,
+                             quint16 port,
+                             const QString& login,
+                             const QString& password,
+                             const QString& systemType,
+                             quint8 smmpVersion,
+                             QObject* parent = nullptr);
+    virtual ~ESMETransceiver();
 
 signals:
     void closed();

@@ -71,7 +71,7 @@ ESMETransceiver::ESMETransceiver(const QString& hostname,
                                  quint8 smmpVersion,
                                  QObject* parent)
     : QObject(parent)
-    , m_socket(0)
+    , m_socket(-1)
     , m_hostname(hostname)
     , m_port(port)
     , m_login(login)
@@ -83,14 +83,20 @@ ESMETransceiver::ESMETransceiver(const QString& hostname,
         m_transmitterThread = std::thread(&ESMETransceiver::transmitBindPDU, this);
         m_receiverThread = std::thread(&ESMETransceiver::waitForBindPDUResponse, this);
     }
+    else close();
 }
+
+ESMETransceiver::~ESMETransceiver()
+{}
 
 void ESMETransceiver::close()
 {
     if (m_receiverThread.joinable()) m_receiverThread.join();
     if (m_transmitterThread.joinable()) m_transmitterThread.join();
-    shutdown(m_socket, SHUT_RDWR);
-    ::close(m_socket);
+    if (m_socket != -1) {
+        shutdown(m_socket, SHUT_RDWR);
+        ::close(m_socket);
+    }
     emit closed();
 }
 
@@ -99,19 +105,21 @@ bool ESMETransceiver::initSocket()
     bool result = false;
 
     m_socket = socket(AF_INET, SOCK_STREAM, 0);
-
-    sockaddr_in serverAddr;
-    serverAddr.sin_family  = AF_INET;
-    serverAddr.sin_port = htons(m_port);
-    if (hostnameToIp(m_hostname.toLatin1(), (in_addr*)&serverAddr.sin_addr.s_addr)) {
-        qInfo() << tr("Connecting to %1").arg(inet_ntoa(*(in_addr*)&serverAddr.sin_addr.s_addr));
-        result = (::connect(m_socket, (sockaddr*) &serverAddr, sizeof(serverAddr)) == 0);
-        if (!result) {
-            qWarning() << tr("It's impossible to connect to the server %1:%2")
-                          .arg(m_hostname, QString::number(m_port));
+    if (m_socket != -1) {
+        sockaddr_in serverAddr;
+        serverAddr.sin_family  = AF_INET;
+        serverAddr.sin_port = htons(m_port);
+        if (hostnameToIp(m_hostname.toLatin1(), (in_addr*)&serverAddr.sin_addr.s_addr)) {
+            qInfo() << tr("Connecting to %1").arg(inet_ntoa(*(in_addr*)&serverAddr.sin_addr.s_addr));
+            result = (::connect(m_socket, (sockaddr*) &serverAddr, sizeof(serverAddr)) == 0);
+            if (!result) {
+                qWarning() << tr("It's impossible to connect to the server %1:%2")
+                              .arg(m_hostname, QString::number(m_port));
+            }
+            else qInfo() << tr("Connected");
         }
-        else qInfo() << tr("Connected");
     }
+    else qWarning() << tr("It's impossible to create socket");
 
     return result;
 }
