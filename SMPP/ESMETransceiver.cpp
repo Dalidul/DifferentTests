@@ -110,8 +110,7 @@ bool ESMETransceiver::initSocket()
             qWarning() << tr("It's impossible to connect to the server %1:%2")
                           .arg(m_hostname, QString::number(m_port));
         }
-        else
-            qInfo() << tr("Connected");
+        else qInfo() << tr("Connected");
     }
 
     return result;

@@ -40,15 +40,15 @@ int main(int argc, char *argv[])
     bool portParsed = false;
     quint16 port = setting.value("port", DEFAULT_PORT).toInt(&portParsed);
     if (!portParsed) port = DEFAULT_PORT;
-        QString login = setting.value("login", DEFAULT_LOGIN).toString();
-        QString password = setting.value("password", DEFAULT_PASSWORD).toString();
-        QString systemType = setting.value("systemType", DEFAULT_SYSTEM_TYPE).toString();
-        bool smmpVersionParsed = false;
-        quint8 smmpVersion = setting.value("smmpVersion", DEFAULT_SMPP_VERSION).toInt(&smmpVersionParsed);
-        if (!smmpVersionParsed) smmpVersion = DEFAULT_SMPP_VERSION;
+    QString login = setting.value("login", DEFAULT_LOGIN).toString();
+    QString password = setting.value("password", DEFAULT_PASSWORD).toString();
+    QString systemType = setting.value("systemType", DEFAULT_SYSTEM_TYPE).toString();
+    bool smmpVersionParsed = false;
+    quint8 smmpVersion = setting.value("smmpVersion", DEFAULT_SMPP_VERSION).toInt(&smmpVersionParsed);
+    if (!smmpVersionParsed) smmpVersion = DEFAULT_SMPP_VERSION;
 
-        ESMETransceiver esme(hostname, port, login, password, systemType, smmpVersion);
-        QObject::connect(&esme, &ESMETransceiver::closed, [&a] {
+    ESMETransceiver esme(hostname, port, login, password, systemType, smmpVersion);
+    QObject::connect(&esme, &ESMETransceiver::closed, [&a] {
         a.exit();
     });
 
