@@ -6,6 +6,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <errno.h>
+#include <cstring>
 
 #include <QDebug>
 
@@ -26,7 +28,7 @@ namespace {
     {
         QByteArray result;
 
-        PDUHeader header {0, 0x00000009, 0, sequenceNumber};
+        PDUHeader header {0, htonl(0x00000009), 0, htonl(sequenceNumber)};
         result.append(systemId.toLatin1(), systemId.size())
               .append('\0')
               .append(password.toLatin1(), password.size())
@@ -37,7 +39,7 @@ namespace {
               .append(char(0))
               .append(char(0))
               .append('\0');
-        header.command_length = sizeof(header) + result.size();
+        header.command_length = htonl(sizeof(header) + result.size());
         result.insert(0, reinterpret_cast<char*>(&header), sizeof(header));
 
         return result;
@@ -83,21 +85,18 @@ ESMETransceiver::ESMETransceiver(const QString& hostname,
         m_transmitterThread = std::thread(&ESMETransceiver::transmitBindPDU, this);
         m_receiverThread = std::thread(&ESMETransceiver::waitForBindPDUResponse, this);
     }
-    else close();
+    else emit close();
 }
 
 ESMETransceiver::~ESMETransceiver()
-{}
-
-void ESMETransceiver::close()
 {
     if (m_receiverThread.joinable()) m_receiverThread.join();
     if (m_transmitterThread.joinable()) m_transmitterThread.join();
     if (m_socket != -1) {
         shutdown(m_socket, SHUT_RDWR);
         ::close(m_socket);
+        m_socket = -1;
     }
-    emit closed();
 }
 
 bool ESMETransceiver::initSocket()
@@ -113,8 +112,8 @@ bool ESMETransceiver::initSocket()
             qInfo() << tr("Connecting to %1").arg(inet_ntoa(*(in_addr*)&serverAddr.sin_addr.s_addr));
             result = (::connect(m_socket, (sockaddr*) &serverAddr, sizeof(serverAddr)) == 0);
             if (!result) {
-                qWarning() << tr("It's impossible to connect to the server %1:%2")
-                              .arg(m_hostname, QString::number(m_port));
+                qWarning() << tr("It's impossible to connect to the server %1:%2 (%3)")
+                              .arg(m_hostname, QString::number(m_port), tr(std::strerror(errno)));
             }
             else qInfo() << tr("Connected");
         }
@@ -131,6 +130,8 @@ void ESMETransceiver::transmitBindPDU()
                                               m_password,
                                               m_systemType,
                                               m_smmpVersion);
+    // т.к. операции с сокетом блокирующие, то программа никогда не завершится,
+    // если здесь произойдёт ошибка
     if (send(m_socket, pdu.data(), pdu.size(), MSG_NOSIGNAL) != pdu.size()) {
         qWarning() << tr("Transmission error");
     }
@@ -140,19 +141,19 @@ void ESMETransceiver::waitForBindPDUResponse()
 {
     PDUHeader header;
     if (recv(m_socket, (char*)&header, sizeof(PDUHeader), MSG_NOSIGNAL) == sizeof(PDUHeader)) {
-        if (header.sequence_number == 0) handleCommandStatus(header.command_status);
+        if (ntohl(header.sequence_number) == 0) handleCommandStatus(ntohl(header.command_status));
         else {
             qWarning() << tr("Unexpected sequence number: %1")
-                          .arg(QString::number(header.sequence_number));
+                          .arg(QString::number(ntohl(header.sequence_number)));
         }
     }
     else qWarning() << tr("It's impossible to read message header");
+
+    emit close();
 }
 
 void ESMETransceiver::handleCommandStatus(int status)
 {
     if (status == 0) qInfo() << tr("SMPP connection established successfully.");
     else tr("SMPP connection error: %1").arg(QString::number(status));
-
-    close();
 }

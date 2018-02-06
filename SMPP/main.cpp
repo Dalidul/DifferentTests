@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     if (!smmpVersionParsed) smmpVersion = DEFAULT_SMPP_VERSION;
 
     ESMETransceiver esme(hostname, port, login, password, systemType, smmpVersion);
-    QObject::connect(&esme, &ESMETransceiver::closed, [&a] {
+    QObject::connect(&esme, &ESMETransceiver::close, [&a] {
         a.exit();
     });
 

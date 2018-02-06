@@ -21,9 +21,6 @@ public:
     virtual ~ESMETransceiver();
 
 signals:
-    void closed();
-
-public:
     void close();
 
 private:
